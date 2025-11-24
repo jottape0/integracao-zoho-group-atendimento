@@ -30,15 +30,15 @@ O workflow é ativado por um Webhook do Group Atendimento após o finalização 
     esteja classificado como "Satisfeito" no atendimento
 
   ### 🧩 Módulos e Tecnologias-Chave
-Módulo,Tipo/Tecnologia,Função Principal no Fluxo
-Webhook,n8n Base,Gatilho inicial ao finalizar um chat no Group Atendimento.
-HTTP Request,n8n Base,"Comunicação com APIs externas (Group Atendimento, Zoho CRM, Zoho OAuth)."
-Code,n8n Base,Scripts para: 1. Formatar a conversa. 2. Extrair áudios. 3. Combinar textos/transcrições. 4. Extrair e estruturar o JSON da IA. 5. Corrigir e-mails e mapear ID do Zoho. 6. Mapear satisfação do cliente.
-OpenAI,n8n Langchain,Transcrição de mensagens de áudio.
-OpenRouter Chat Model,n8n Langchain,Provedor do Modelo de Linguagem (LLM) para a análise de conversas.
-AI Agent,n8n Langchain,"Orquestra a tarefa de análise, garantindo o JSON de saída e a aplicação de regras."
-Microsoft SQL,n8n Database,Busca o ID do Cliente no Zoho (idClienteZoho) a partir do código interno (customerCode).
-If,n8n Base,"Implementa lógica condicional para: 1. Prosseguir apenas se o idClienteZoho for encontrado. 2. Opcionalmente, prosseguir apenas se a satisfação for positiva (depende da configuração final da branch)."
+| Módulo | Tipo | Tecnologia | Função Principal no Fluxo |
+| Webhook| n8n Base | Gatilho inicial ao finalizar um chat no Group Atendimento. |
+| HTTP Request | n8n Base | "Comunicação com APIs externas (Group Atendimento, Zoho CRM, Zoho OAuth)." |
+| Code | n8n Base | Scripts para: 1. Formatar a conversa. 2. Extrair áudios. 3. Combinar textos/transcrições. 4. Extrair e estruturar o JSON da IA. 5. Corrigir e-mails e mapear ID do Zoho. 6. Mapear satisfação do cliente. |
+| OpenAI | n8n Langchain | Transcrição de mensagens de áudio. |
+| OpenRouter Chat Model | n8n Langchain | Provedor do Modelo de Linguagem (LLM) para a análise de conversas. |
+| AI Agent | n8n Langchain | "Orquestra a tarefa de análise, garantindo o JSON de saída e a aplicação de regras." |
+| Microsoft SQL | n8n Database | Busca o ID do Cliente no Zoho (idClienteZoho) a partir do código interno (customerCode). |
+| If | n8n Base | "Implementa lógica condicional para: 1. Prosseguir apenas se o idClienteZoho for encontrado. 2. Opcionalmente, prosseguir apenas se a satisfação for positiva (depende da configuração final da branch)." |
 
 ### 🛠️ Pré-requisitos e Configurações
 Para replicar este fluxo, são necessárias as seguintes credenciais e configurações nos respectivos nós:
