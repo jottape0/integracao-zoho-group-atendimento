@@ -1,0 +1,811 @@
+{
+  "name": "integracao zoho CRM + Group Atendimento",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Conversa completa (texto + áudios transcritos): {{$json.formatted_final || $json.formatted || ''}}\n",
+        "options": {
+          "systemMessage": "Você é um assistente especializado em análise de atendimentos (mensagens de chat + áudios transcritos). Analise todo o conteúdo recebido.\n\nRetorne apenas um JSON válido em uma única linha (sem quebras de linha, sem texto fora do JSON).\n\nEstrutura do JSON:\n\nresumo: síntese objetiva do atendimento (3–6 frases)\n\nintencao_cliente: [informacao | suporte | orçamento | cancelamento | reclamacao | outro] + evidências textuais\n\nsentimento_cliente: [positivo | neutro | negativo] + trechos justificando\n\nsentimento_atendente: [positivo | neutro | negativo] + trechos justificando\n\nobjeções_principais: lista breve (se houver)\n\noportunidades: lista de ações sugeridas ao time\n\nproximos_passos: resposta sugerida ao cliente (1–3 frases diretas)\n\nriscos: promessas, ruídos ou pontos críticos\n\nfeedback_cliente: { nota 0-10, pontos_positivos[], pontos_a_melhorar[], evidencias[] }\n\nfeedback_atendente: { nota 0-10, pontos_positivos[], pontos_a_melhorar[], evidencias[] }\n\npalavras_chave: lista de termos relevantes\n\nextratos_relevantes: trechos literais curtos do atendimento\n\nstatus: [concluido | pendente_resposta_time | pendente_cliente]\n\nRegras obrigatórias:\n\nUse toda a linha do tempo (mensagens + transcrições)\n\nInclua evidências textuais curtas (máx. 1–2 linhas)\n\nSe a transcrição tiver ruído ou incerteza, registre em \"riscos\"\n\nNunca use \\n ou texto fora do JSON\n\nResponda somente com o JSON em uma única linha"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.2,
+      "position": [
+        2304,
+        160
+      ],
+      "id": "ada56092-662b-487a-9ef7-b0f102d2a3fa",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.toolThink",
+      "typeVersion": 1.1,
+      "position": [
+        2448,
+        512
+      ],
+      "id": "f474f4b4-3111-44fc-8be0-ff34eee7545b",
+      "name": "Think"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analisaratendimento",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        320,
+        0
+      ],
+      "id": "33b37e85-b8a1-428e-89bb-3f66ba2edfb4",
+      "name": "Webhook",
+      "webhookId": "cf834927-131a-42c7-b937-6ed5200727f0"
+    },
+    {
+      "parameters": {
+        "jsCode": "const b = $json.body || {};\nconst endAtIso = b.utcDhEvent || new Date().toISOString();\nconst endMs = Date.parse(endAtIso);\nconst startWindow = new Date(endMs - 60*60*1000).toISOString();\nconst endWindow   = new Date(endMs + 5*60*1000).toISOString();\n\nreturn {\n  page: -96018973,\n  status: 3,\n  typeChat: 2,\n  pageSize: 100,\n  sectorId: \"66a7a9de44603cf3e45c2420\",\n  // dateFilters: {\n  //   byStartDate: { start: startWindow, finish: endWindow },\n  //   byEndDate:   { start: startWindow, finish: endWindow }\n  // }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        176,
+        -1008
+      ],
+      "id": "00b67252-4f5a-4aeb-831f-944a016f13cd",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.groupatendimento.com.br/core/v2/api/chats/list",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "access-token",
+              "value": "65f341a4b325571dcea2daff"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.toJsonString() }}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        384,
+        -1008
+      ],
+      "id": "b1afd60e-cfbe-428e-9356-0572b9555b6b",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.groupatendimento.com.br/core/v2/api/chats/{{ $json.body.chatId }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "access-token",
+              "value": "65f341a4b325571dcea2daff"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "56c76af3-d3f4-447a-8f21-88d6aff4dcb6",
+      "name": "HTTP Request(chats)"
+    },
+    {
+      "parameters": {
+        "resource": "audio",
+        "operation": "transcribe",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1248,
+        256
+      ],
+      "id": "736193fb-f92f-4191-b306-d9b1608dc102",
+      "name": "Transcribe a recording",
+      "alwaysOutputData": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "WlVvutgXYCO21jtl",
+          "name": "OpenAi account 7"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "function formatChatForLLM(messages) {\n  function formatTime(iso) {\n    try {\n      const date = new Date(iso);\n      if (isNaN(date.getTime())) return iso;\n      return date.toLocaleString(\"pt-BR\", {\n        day: \"2-digit\",\n        month: \"2-digit\",\n        year: \"numeric\",\n        hour: \"2-digit\",\n        minute: \"2-digit\"\n      });\n    } catch (e) {\n      return iso;\n    }\n  }\n\n  const formatted = [];\n\n  messages\n    .sort((a, b) => (a.dhMessage || \"\").localeCompare(b.dhMessage || \"\"))\n    .forEach(msg => {\n      if (msg.isSystemMessage || !msg.text || msg.text.trim() === \"\") {\n        return;\n      }\n\n      const sender = msg.senderName || \"Desconhecido\";\n      const text = msg.text.trim();\n      const timestamp = formatTime(msg.dhMessage || \"\");\n\n      formatted.push(`[${timestamp}] ${sender}: ${text}`);\n    });\n\n  return formatted.join(\"\\n\");\n}\n\n// ======================\n// NOVA LÓGICA DE ORIGEM\n// ======================\nlet origemDoContato = \"Reativo\"; // padrão\n\ntry {\n  // Pega o rawChat diretamente do webhook inicial\n  // const rawChat = $('Webhook').first().json.rawChat;\n\n  const rawChat = $('HTTP Request(chats)').first().json.messages[0].text;\n  \n  const firstMessage = rawChat?.messages?.[0]?.text || \"\";\n\n  if (firstMessage) {\n    const txt = firstMessage.toLowerCase();\n\n    if (txt.includes(\"iniciado por: cliente\")) {\n      origemDoContato = \"Reativo\";\n    }\n    else if (\n      txt.includes(\"iniciado por: api\") ||\n      txt.includes(\"iniciado por: você\") ||\n      txt.includes(\"iniciado por: atendente\")\n    ) {\n      origemDoContato = \"Proativo\";\n    }\n    else {\n      origemDoContato = txt.includes(\"iniciado por\")\n        ? \"Proativo\"\n        : \"Reativo\";\n    }\n  }\n} catch (e) {\n  origemDoContato = \"Reativo\";\n}\n\n// ======================\n// FORMATAÇÃO DO CHAT\n// ======================\nconst messages = $('HTTP Request(chats)').first().json.messages || [];\nconst formatted = formatChatForLLM(messages);\n\n// Retorno final com origem + texto formatado\nreturn [\n  {\n    json: {\n      formatted,\n      origemDoContato\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        496,
+        448
+      ],
+      "id": "7b4ef07a-4028-44a1-8ece-b094acbf6ce9",
+      "name": "Code_text"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Code_audio — extrai apenas mensagens de áudio e não emite nada se não houver\n\nfunction pickMessages() {\n  // 1) Se o item atual já tiver messages[]\n  if (Array.isArray($json?.messages)) return $json.messages;\n\n  // 2) Tenta buscar no nó \"HTTP Request(chats)\" (ajuste o nome se for diferente)\n  try {\n    const it = $items('HTTP Request(chats)', 0, 0);\n    if (Array.isArray(it?.json?.messages)) return it.json.messages;\n  } catch (_) {}\n\n  // 3) Fallback: pode ser que o item atual JÁ seja uma única mensagem vinda do webhook\n  if (\n    typeof $json?.dataMedia?.mimetype === 'string' &&\n    $json.dataMedia.mimetype.startsWith('audio') &&\n    typeof $json?.dataMedia?.urlFile === 'string' &&\n    $json.dataMedia.urlFile.trim() !== ''\n  ) {\n    return [$json];\n  }\n\n  // Sem mensagens reconhecidas\n  return [];\n}\n\nconst messages = pickMessages();\n\n// filtra só áudios com URL válida e mapeia campos úteis\nconst out = messages\n  .filter(m =>\n    typeof m?.dataMedia?.mimetype === 'string' &&\n    m.dataMedia.mimetype.startsWith('audio') &&\n    typeof m?.dataMedia?.urlFile === 'string' &&\n    m.dataMedia.urlFile.trim() !== ''\n  )\n  .map(m => ({\n    json: {\n      idMessage: m.idMessage,\n      createdAt: m.dhMessage || m.unixTimeMessage || null,\n      urlFile: m.dataMedia.urlFile,\n      filename: m.dataMedia.filename || 'audio.oga',\n      mimetype: m.dataMedia.mimetype,\n      duration: m.dataMedia.duration || null,\n      senderName: m.senderName || null,\n    }\n  }));\n\n// 🔑 Comportamento desejado: se não houver áudio, retorna [] (zero items).\n// Isso evita que o HTTP Request(download) e a Transcrição executem sem necessidade.\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        256
+      ],
+      "id": "aa71bedf-5e5d-43f9-bd20-818dacdc451c",
+      "name": "Code_audio"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.urlFile }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        992,
+        256
+      ],
+      "id": "eec5ebe0-9268-4e9d-930a-a045991b3f5e",
+      "name": "HTTP Request(download_audio)"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Junta todos os inputs do Merge\nconst allInputs = $input.all();\n\n// Array que vai acumular textos\nconst formatted = [];\n\n// Função auxiliar para limpar e normalizar textos\nfunction normalize(str) {\n  if (!str) return \"\";\n  return String(str)\n    .replace(/\\s+/g, \" \")\n    .trim();\n}\n\n// Para cada item (Merge sempre entrega vários)\nfor (const item of allInputs) {\n  const j = item.json;\n\n  // prioriza campos padrões text/formatted\n  const text =\n    j.formatted ||   // Code_text output\n    j.text ||        // Transcribe output\n    j.message ||     // possíveis formatos alternativos\n    \"\";\n\n  const cleaned = normalize(text);\n\n  if (cleaned !== \"\") {\n    formatted.push(cleaned);\n  }\n}\n\n// Junta tudo com quebra de linha dupla (mais limpo para LLM)\nconst finalText = formatted.join(\"\\n\\n\");\n\n// Retorna no formato esperado\nreturn [\n  {\n    json: {\n      formatted: finalText\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2112,
+        160
+      ],
+      "id": "a82b86a4-13b8-403e-9bdd-a0c313084880",
+      "name": "Code_combine"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1984,
+        432
+      ],
+      "id": "87145cbd-6785-4b97-87bc-2b282792b2e4",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Code_build_record (com leitura robusta do nó HTTP Request(chats)\n * e extração do customerCode preservando zeros à esquerda)\n */\n\n/* ---------------- helpers ---------------- */\nfunction get(o, path, d = null) {\n  try { return path.split('.').reduce((a, k) => (a && k in a ? a[k] : d), o); } catch { return d; }\n}\n\n/** tenta ler o JSON do nó \"HTTP Request(chats)\" por múltiplas vias */\nfunction readChatJson() {\n  // 1) item pareado (melhor para branches/merge)\n  try {\n    const j = $item(0).$node?.['HTTP Request(chats)']?.json;\n    if (j) return j;\n  } catch {}\n\n  // 2) último estado do nó\n  try {\n    const j = $node?.['HTTP Request(chats)']?.json;\n    if (j) return j;\n  } catch {}\n\n  // 3) fallback legacy\n  try {\n    const it = $items('HTTP Request(chats)', 0, 0);\n    if (it?.json) return it.json;\n  } catch {}\n\n  return null;\n}\n\n/** extrai somente a sequência de dígitos do INÍCIO do nome (preserva zeros) */\nfunction extractCustomerCode(name) {\n  const s = String(name || '').trim();\n  if (!s) return { customerCode: null, code_extraction_ok: false };\n  const m = s.match(/^(\\d+)/);        // captura só números no começo\n  const raw = m ? m[1] : null;        // \"0012\", \"0000\", \"12\" etc (preserva zeros)\n  return { customerCode: raw, code_extraction_ok: !!raw };\n}\n\n/* ---------------- 1) meta do chat ---------------- */\nconst chat = readChatJson() || {};\nconst protocol      = chat?.protocol ?? null;\nconst attendanceId  = chat?.attendanceId ?? null;\nconst contactName   = chat?.contact?.name ?? '';\nconst contactPhone  = chat?.contact?.number ?? null;\n\nconst codeInfo = extractCustomerCode(contactName);\n\n/* ---------------- 2) parse do output do AI Agent ---------------- */\nlet raw = $input.first()?.json?.output ?? $input.first()?.json?.data ?? '';\nraw = String(raw).replace(/^```(?:json)?/i, '').replace(/```$/i, '').trim();\n\nlet obj = {};\nlet parse_error = false;\ntry { obj = raw ? JSON.parse(raw) : {}; } catch { parse_error = true; }\n\n/* ---------------- 3) record final ---------------- */\nconst record = {\n  createdAt: new Date().toISOString(),\n  protocol,\n  attendanceId,\n  contact_name: contactName,\n  contact_phone: contactPhone,\n\n  // código preservando zeros\n  customerCode: codeInfo.customerCode,\n  code_extraction_ok: codeInfo.code_extraction_ok,\n\n  // campos da análise\n  resumo: get(obj, 'resumo', ''),\n  intencao: Array.isArray(obj['intenção_cliente'])\n              ? obj['intenção_cliente'].join(' | ')\n              : String(obj['intenção_cliente'] || ''),\n  sentimento_cliente: Array.isArray(obj.sentimento_cliente)\n              ? obj.sentimento_cliente.join(' | ')\n              : String(obj.sentimento_cliente || ''),\n  sentimento_atendente: Array.isArray(obj.sentimento_atendente)\n              ? obj.sentimento_atendente.join(' | ')\n              : String(obj.sentimento_atendente || ''),\n  objeções: Array.isArray(obj.objeções_principais) ? obj.objeções_principais.join(' | ') : '',\n  oportunidades: Array.isArray(obj.oportunidades) ? obj.oportunidades.join(' | ') : '',\n  proximos_passos: obj.proximos_passos || '',\n  riscos: obj.riscos || '',\n  palavras_chave: Array.isArray(obj.palavras_chave) ? obj.palavras_chave.join(',') : '',\n  status: obj.status || '',\n\n  fb_cliente_nota: get(obj, 'feedback_cliente.nota', null),\n  fb_cliente_positivos: (get(obj,'feedback_cliente.pontos_positivos',[]) || []).join(' | '),\n  fb_cliente_melhorar: (get(obj,'feedback_cliente.pontos_a_melhorar',[]) || []).join(' | '),\n  fb_cliente_evidencias: (get(obj,'feedback_cliente.evidencias',[]) || []).join(' | '),\n\n  fb_atend_nota: get(obj, 'feedback_atendente.nota', null),\n  fb_atend_positivos: (get(obj,'feedback_atendente.pontos_positivos',[]) || []).join(' | '),\n  fb_atend_melhorar: (get(obj,'feedback_atendente.pontos_a_melhorar',[]) || []).join(' | '),\n  fb_atend_evidencias: (get(obj,'feedback_atendente.evidencias',[]) || []).join(' | '),\n\n  parse_error,\n  raw_json: raw || null,\n\n  // opcional: debug para você conferir se achou o nó certo\n  _debug_sources: {\n    hasHTTPChats: !!chat,\n    contactNameSeen: contactName || null\n  }\n};\n\nreturn [{ json: record }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        160
+      ],
+      "id": "520ebbce-4c49-4e34-a13d-a0bdbb3a4016",
+      "name": "Code_extract_objects"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT TOP (1) idClienteZoho\nFROM dbo.clientes\nWHERE codigoCliente = {{$json.customerCode}}\n"
+      },
+      "type": "n8n-nodes-base.microsoftSql",
+      "typeVersion": 1.1,
+      "position": [
+        2880,
+        160
+      ],
+      "id": "12995ae3-b35c-4897-9f0e-5c0c165c3135",
+      "name": "Microsoft SQL",
+      "credentials": {
+        "microsoftSql": {
+          "id": "nQAXPHjvrW9v4cnG",
+          "name": "Microsoft SQL account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2304,
+        512
+      ],
+      "id": "5721fcba-4803-4dd1-b948-049205fc913b",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "4hasBmSad4X3zBoR",
+          "name": "OpenRouter account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://www.zohoapis.com/crm/v8/Sucesso_dos_Clientes",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Zoho-oauthtoken {{ $('Gera o access token ').item.json.access_token }}"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    \"data\": [\n      {\n        \"Owner\": {\n          \"id\": $json.ownerIdCorrigido\n        },\n        \"Cliente\": {\n          \"id\": String($('obtem a satisfação do cliente').item.json.idClienteZoho ?? \"\")\n        },\n        \"Observa_o\": (() => {\n          const v = $('Code_extract_objects').first().json?.raw_json;\n          if (v == null) return \"\";\n          return typeof v === \"string\" ? v : JSON.stringify(v);\n        })(),\n        \"Status_Cliente\": String($('obtem a satisfação do cliente').item.json.statusClienteZoho ?? \"\"),\n        \"Origem_do_Contato\": String($('Code_text').first().json.origemDoContato ?? \"\"),\n        \"Canal_do_Atendimento\": \"Contato de acompanhamento\",\n        \"Status_do_Contato\": \"Produtivo\",\n      }\n    ]\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4656,
+        16
+      ],
+      "id": "bbc0980c-c815-4bda-afa0-d7ae378bb47b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "1b92b9fa-52f1-4eb3-8bd5-23928194eecc",
+              "leftValue": "={{ $json.idClienteZoho }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "620dfd0d-7a66-4441-ade1-a25cf9cf46bb",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3120,
+        160
+      ],
+      "id": "1fcc94bc-d98e-4374-a7b8-c9cc95f01066",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://accounts.zoho.com/oauth/v2/token",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "refresh_token",
+              "value": "1000.d2212305465671ac8fae564625907557.f19016bd4788da189616be7244c0a66c"
+            },
+            {
+              "name": "client_id",
+              "value": "1000.0AR0EHA13ZXG35OFIU0VIAJ5DHBWQV"
+            },
+            {
+              "name": "client_secret",
+              "value": "cf1b89c764fd1180320b2e23c04c9859c0e5023fed"
+            },
+            {
+              "name": "grant_type",
+              "value": "refresh_token"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3584,
+        144
+      ],
+      "id": "64509b2d-9012-47ee-ba92-a8bc1f387b11",
+      "name": "Gera o access token "
+    },
+    {
+      "parameters": {
+        "url": "=https://api.groupatendimento.com.br/core/v2/api/users/{{ $json.finalizadoPor.id }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "access-token",
+              "value": "65f341a4b325571dcea2daff"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        928,
+        0
+      ],
+      "id": "7034fd0e-4cb1-495b-acf1-2bba8887c865",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "url": "https://www.zohoapis.com/crm/v8/users?type=ActiveUsers",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "=Zoho-oauthtoken {{ $json.access_token }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        3824,
+        144
+      ],
+      "id": "d2627631-30e0-43c5-8e35-7f587650bceb",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        4640,
+        400
+      ],
+      "id": "631ef9d1-bc2f-407c-9e82-b0436d7136d4",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d5950e37-1020-4347-a5db-64ad7ad13bd7",
+              "leftValue": "={{ $('obtem a satisfação do cliente').item.json.statusClienteZoho }}",
+              "rightValue": "Cliente Satisfeito",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "126f51b7-0c65-4b4b-a0fc-d12680257f70",
+              "leftValue": "={{ $('obtem a satisfação do cliente').item.json.statusClienteZoho }}",
+              "rightValue": "Cliente satisfeito",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            },
+            {
+              "id": "9269089e-064f-46bb-a100-cdcf267a9870",
+              "leftValue": "={{ $('obtem a satisfação do cliente').item.json.statusClienteZoho }}",
+              "rightValue": "cliente satisfeito",
+              "operator": {
+                "type": "string",
+                "operation": "contains"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4272,
+        144
+      ],
+      "id": "df50a62d-c02a-4ce5-947a-f9107ce9f520",
+      "name": "valida a satisfação do cliente",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "jsCode": "// 1) Buscar e-mail original do atendente (vindo do HTTP Request1)\nconst emailOriginal = $('HTTP Request1').first().json.email || \"\";\n// const emailOriginal = \"sucesso.cliente@groupsoftware.com.br\"\n\n// 2) Corrigir domínio @partnerbank → @groupsoftware\nconst emailCorrigido = emailOriginal.replace(\n  /@partnerbank\\.com\\.br$/i,\n  \"@groupsoftware.com.br\"\n);\n\n// 3) Buscar lista de usuários do Zoho (HTTP Request2)\nconst zohoUsers = $('HTTP Request2').first().json.users || [];\n\n// 4) Encontrar o usuário do Zoho que tem o email corrigido\nconst userZoho = zohoUsers.find(u =>\n  (u.email || \"\").toLowerCase() === emailCorrigido.toLowerCase()\n);\n\n// 5) Se não achar, retorna erro útil\nif (!userZoho) {\n  return [{\n    json: {\n      erro: `Usuário com e-mail ${emailCorrigido} não encontrado no Zoho`,\n      emailOriginal,\n      emailCorrigido\n    }\n  }];\n}\n\n// 6) Retorno final completo\nreturn [{\n  json: {\n    emailOriginal,\n    emailCorrigido,\n    ownerIdCorrigido: userZoho.id\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4064,
+        144
+      ],
+      "id": "22be467c-838b-46b6-9723-a51eb43a1a46",
+      "name": "corrige o padrão dos emails"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Entrada esperada em $json.sentimento_cliente, ex: \"positivo | 'Obrigado pelas informações...'\"\nconst raw = ($('Code_extract_objects').first().json.sentimento_cliente|| \"\").toString();\nconst label = raw.split(\"|\")[0].trim().toLowerCase();\n\nconst map = {\n  \"positivo\": \"Cliente Satisfeito\",\n  \"satisfeito\": \"Cliente Satisfeito\",\n  \"negativo\": \"Cliente Insatisfeito\",\n  \"insatisfeito\": \"Cliente Insatisfeito\",\n  \"neutro\": \"Cliente Neutro\",\n  \"n/a\": \"N/A (Não se Aplica)\",\n  \"na\": \"N/A (Não se Aplica)\",\n  \"nao_aplica\": \"N/A (Não se Aplica)\",\n};\n\nlet statusZoho = map[label];\n\n// fallback seguro se vier algo fora do mapeado\nif (!statusZoho) statusZoho = \"N/A (Não se Aplica)\"; // ou \"-None-\"\n\nreturn [{ \n  ...$json, \n  statusClienteZoho: statusZoho\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3360,
+        144
+      ],
+      "id": "d2cf923b-63a9-4135-9a06-cdeb52e78788",
+      "name": "obtem a satisfação do cliente"
+    }
+  ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "connection": "upgrade",
+            "host": "n8n.groupsoftware.com.br",
+            "content-length": "367",
+            "content-type": "application/json",
+            "x-n8n-token": "teste123",
+            "accept": "*/*",
+            "user-agent": "node-fetch/1.0 (+https://github.com/bitinn/node-fetch)",
+            "accept-encoding": "gzip,deflate"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "stage": "enriched",
+            "event": "chat.finalized",
+            "chatId": "68c41c935f3dbe7e22b28157",
+            "protocol": null,
+            "contactNumber": null,
+            "channelId": null,
+            "orgId": null,
+            "eventReceivedAt": "2025-09-12T13:15:40.843Z",
+            "effectiveChatId": "68c41c935f3dbe7e22b28157",
+            "matchedBy": "direct",
+            "matchedAttendanceId": null,
+            "protocolResolved": null,
+            "utcDhEndChat": "2025-09-12T13:15:40.843Z",
+            "rawChat": null
+          },
+          "webhookUrl": "https://n8n.groupsoftware.com.br/webhook/analisaratendimento",
+          "executionMode": "production"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Think": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request(chats)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request(chats)": {
+      "main": [
+        [
+          {
+            "node": "Code_audio",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transcribe a recording": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_text": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Code_audio": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request(download_audio)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request(download_audio)": {
+      "main": [
+        [
+          {
+            "node": "Transcribe a recording",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_combine": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code_combine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code_extract_objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code_extract_objects": {
+      "main": [
+        [
+          {
+            "node": "Microsoft SQL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Microsoft SQL": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "obtem a satisfação do cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gera o access token ": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "Code_text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "corrige o padrão dos emails",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "valida a satisfação do cliente": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "corrige o padrão dos emails": {
+      "main": [
+        [
+          {
+            "node": "valida a satisfação do cliente",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "obtem a satisfação do cliente": {
+      "main": [
+        [
+          {
+            "node": "Gera o access token ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "4e86c6f8-9cd8-41cf-9839-a4b630519107",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0fb2d8e68998d77bb88f9af3744a1b5969485af4674b9ae26770ef0d734a521d"
+  },
+  "id": "dWoy33bIiYchllXO",
+  "tags": []
+}
