@@ -30,8 +30,8 @@ O workflow é ativado por um Webhook do Group Atendimento após o finalização 
     esteja classificado como "Satisfeito" no atendimento
 
   ### 🧩 Módulos e Tecnologias-Chave
-| Módulo | Tipo | Tecnologia | Função Principal no Fluxo |
-| :--- | :--- | :--- | :--- |
+| Módulo | Tecnologia | Função Principal no Fluxo | 
+| :--- | :--- | :--- | 
 | Webhook| n8n Base | Gatilho inicial ao finalizar um chat no Group Atendimento. |
 | HTTP Request | n8n Base | "Comunicação com APIs externas (Group Atendimento, Zoho CRM, Zoho OAuth)." |
 | Code | n8n Base | Scripts para: 1. Formatar a conversa. 2. Extrair áudios. 3. Combinar textos/transcrições. 4. Extrair e estruturar o JSON da IA. 5. Corrigir e-mails e mapear ID do Zoho. 6. Mapear satisfação do cliente. |
